@@ -1,9 +1,11 @@
 import typing
+from PyQt6.QtCore import Qt
 from PyQt6 import QtCore
 from PyQt6.QtWidgets import QApplication, QLabel, QWidget, QGridLayout, \
-    QLineEdit, QPushButton, QMainWindow, QTableWidget, QTableWidgetItem, QDialog, QVBoxLayout, QComboBox
+    QLineEdit, QPushButton, QMainWindow, QTableWidget, QTableWidgetItem, \
+        QDialog, QVBoxLayout, QComboBox, QToolBar
 import sys
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QIcon
 import sqlite3
 
 
@@ -16,20 +18,32 @@ class MainWindow(QMainWindow):
         file_menu_item = self.menuBar().addMenu("&File")
         help_menu_item = self.menuBar().addMenu("&Help")
 
-        add_student_action = QAction("ADD Student", self)
+        add_student_action = QAction(QIcon("icons/add.png"),"ADD Student", self)
         add_student_action.triggered.connect(self.insert)
         add_help_action = QAction("Help", self)
         about_action = QAction("About", self)
+        search_action = QAction(QIcon("icons/search.png"),"Search", self)
+        search_action.triggered.connect(self.search)
 
         file_menu_item.addAction(add_student_action)
         file_menu_item.addAction(add_help_action)
         help_menu_item.addAction(about_action)
+        help_menu_item.addAction(search_action)
 
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(("Id","Name","Course","Mobile"))
         self.table.verticalHeader().setVisible(False)
         self.setCentralWidget(self.table)
+
+        toolbar = QToolBar()
+        toolbar.setMovable(True)
+        self.addToolBar(toolbar)
+        toolbar.addAction(add_student_action)
+
+        toolbar.addAction(add_student_action)
+
+
         
     def load_data(self):
         connection = sqlite3.connect("database.db")
@@ -44,6 +58,10 @@ class MainWindow(QMainWindow):
     
     def insert(self):
         dialog = InsertDialog()
+        dialog.exec()
+
+    def search(self):
+        dialog = SearchDialog()
         dialog.exec()
 
 class InsertDialog(QDialog):
@@ -83,10 +101,42 @@ class InsertDialog(QDialog):
         connection.commit()
         cursor.close()
         connection.close()
-        age_calculater.load_data()
+        main_window.load_data()
+
+class SearchDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Search Student")
+        self.setFixedWidth(300)
+        self.setFixedHeight(300)
+
+        layout = QVBoxLayout()
+        self.student_name = QLineEdit()
+        self.student_name.setPlaceholderText("Name")
+        layout.addWidget(self.student_name)
+
+        button = QPushButton("Search")
+        button.clicked.connect(self.search)
+        layout.addWidget(button)
+        self.setLayout(layout)
+
+    def search(self):
+        name = self.student_name.text()
+        connection = sqlite3.connect("database.db")
+        cursor = connection.cursor()
+        result = cursor.execute("SELECT * FROM students WHERE name = ?",(name,))
+        rows = list(result)
+        items = main_window.table.findItems(name, Qt.MatchFlag.MatchFixedString)
+        for item in items:
+            main_window.table.item(item.row(),1).setSelected(True)
+        cursor.close()
+        connection.close()
+
+    
 
 app = QApplication(sys.argv)
-age_calculater = MainWindow()
-age_calculater.show()
-age_calculater.load_data()
+main_window = MainWindow()
+main_window.show()
+main_window.load_data()
 sys.exit(app.exec())
